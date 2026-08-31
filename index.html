@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Ça Flingue ! — Prototype V1</title>
+<style>
+  :root{--bg:#f4f1ea;--ink:#111;--panel:#fff;--muted:#777;--accent:#111;--danger:#b72020}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  .app{max-width:920px;margin:0 auto;min-height:100vh;padding:14px 14px 100px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+  h1{font-size:28px;margin:0;font-weight:1000;letter-spacing:-1px;transform:skew(-6deg)}
+  .sub{font-size:12px;color:var(--muted)}
+  .pill{background:#111;color:#fff;border-radius:999px;padding:7px 11px;font-weight:800;font-size:12px}
+  .board{display:grid;gap:10px}
+  .panel{background:var(--panel);border:2px solid #111;border-radius:18px;padding:12px;box-shadow:0 4px 0 #111}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .spread{justify-content:space-between}
+  .stat{font-weight:800;font-size:13px}
+  .big{font-size:22px;font-weight:1000}
+  .message{min-height:58px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:18px;font-weight:900;background:#111;color:#fff;border-radius:16px;padding:10px}
+  .zone{min-height:92px;border:2px dashed #bbb;border-radius:14px;padding:8px;display:flex;gap:7px;align-items:center;overflow-x:auto}
+  .label{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;color:#666;margin-bottom:5px}
+  .cards{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 10px}
+  .card{min-width:72px;height:102px;border-radius:13px;border:3px solid #111;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:1000;cursor:pointer;user-select:none;box-shadow:0 3px 0 #111;transition:.12s transform,.12s box-shadow;position:relative}
+  .card:hover{transform:translateY(-2px)}
+  .card.selected{transform:translateY(-12px);box-shadow:0 10px 0 #111}
+  .card .word{font-size:19px;transform:rotate(-5deg)}
+  .card .type{font-size:10px;margin-top:6px;padding:3px 6px;border-radius:999px;background:#eee}
+  .card.armored{background:repeating-linear-gradient(135deg,#fff,#fff 7px,#ececec 7px,#ececec 14px)}
+  .card.armored .type{background:#111;color:#fff}
+  .card.joker{background:conic-gradient(#ffd83d,#ff6b6b,#6bc3ff,#6ee7a8,#c58cff,#ffd83d)}
+  .card.joker .word{font-size:15px;background:#fff;padding:6px;border:2px solid #111;border-radius:10px}
+  button{appearance:none;border:2px solid #111;background:#fff;color:#111;border-radius:14px;padding:12px 14px;font-weight:900;font-size:15px;box-shadow:0 3px 0 #111;cursor:pointer}
+  button.primary{background:#111;color:#fff}
+  button.danger{background:#ffefef;color:#8d1111;border-color:#8d1111}
+  button:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .controls .wide{grid-column:1/-1}
+  .tiny{font-size:11px;color:#666;line-height:1.35}
+  .attack{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .token{padding:7px 9px;border:2px solid #111;border-radius:10px;background:#fff;font-weight:1000}
+  .token.arm{background:#111;color:#fff}
+  .level{width:50px;height:50px;border:3px solid #111;border-radius:50%;display:grid;place-items:center;font-size:24px;font-weight:1000;background:#fff}
+  .bot-hidden{display:flex;gap:4px}
+  .back{width:24px;height:35px;border:2px solid #111;border-radius:5px;background:repeating-linear-gradient(45deg,#111 0,#111 4px,#fff 4px,#fff 8px)}
+  .footer{margin-top:12px;font-size:11px;color:#777;text-align:center}
+  .flash{animation:flash .55s ease}
+  @keyframes flash{0%{transform:scale(.98)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+  @media(max-width:600px){h1{font-size:24px}.card{min-width:66px;height:96px}.controls{grid-template-columns:1fr}.controls .wide{grid-column:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div><h1>ÇA FLINGUE !</h1><div class="sub">Prototype V1 — Humain vs Bot</div></div>
+  <button id="resetBtn">Nouvelle partie</button>
+</header>
+
+<div class="board">
+  <section class="panel">
+    <div class="row spread">
+      <div>
+        <div class="label">BOT</div>
+        <div class="row">
+          <div class="level" id="botLevel">3</div>
+          <div class="stat">Réserve <span id="botReserve">0</span> · Défausse <span id="botDiscard">0</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="label">Main du bot</div>
+        <div class="bot-hidden" id="botHandBacks"></div>
+      </div>
+    </div>
+    <div class="label" style="margin-top:8px">Zone du bot</div>
+    <div class="zone" id="botZone"></div>
+  </section>
+
+  <div class="message" id="message">Chargement…</div>
+
+  <section class="panel">
+    <div class="label">Attaque à battre</div>
+    <div class="attack" id="attackView"><span class="tiny">Aucune attaque en cours.</span></div>
+  </section>
+
+  <section class="panel">
+    <div class="label">Ta zone</div>
+    <div class="zone" id="humanZone"></div>
+    <div class="row spread" style="margin-top:10px">
+      <div class="row">
+        <div class="level" id="humanLevel">3</div>
+        <div>
+          <div class="big">Ton palier</div>
+          <div class="stat">Réserve <span id="humanReserve">0</span> · Défausse <span id="humanDiscard">0</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="label">Ta main</div>
+    <div class="cards" id="humanHand"></div>
+    <div class="controls">
+      <button class="primary" id="playBtn">Jouer la sélection</button>
+      <button id="flingueBtn">ÇA FLINGUE !</button>
+      <button class="danger wide" id="cantBtn">Je ne peux pas répondre</button>
+    </div>
+    <p class="tiny">Sélectionne une ou plusieurs cartes. Les jokers prennent l’onomatopée de la sélection. Une attaque blindée contient au moins une carte blindée.</p>
+  </section>
+</div>
+<div class="footer">Prototype basé sur les règles fournies. V1 destinée à valider le moteur de jeu avant le multijoueur.</div>
+</div>
+
+<script>
+const WORDS=["BOUM","TOC","PAF","CLIC","PIOU","PAN","BANG","BIM"];
+let uid=0;
+const mk=(word,type)=>({id:++uid,word,type});
+
+function buildDeck(){
+  const d=[];
+  for(const w of WORDS){ for(let i=0;i<6;i++) d.push(mk(w,"simple")); for(let i=0;i<3;i++) d.push(mk(w,"armored")); }
+  for(let i=0;i<9;i++) d.push(mk("JOKER","joker"));
+  return shuffle(d);
+}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function player(name){return {name,level:3,reserve:[],hand:[],discard:[],zone:[]}}
+let G={};
+function refill(p){
+  while(p.hand.length<p.level){
+    if(!p.reserve.length && p.discard.length){p.reserve=shuffle(p.discard.splice(0))}
+    if(!p.reserve.length) break;
+    p.hand.push(p.reserve.pop());
+  }
+}
+function cardWordSet(cards){return [...new Set(cards.filter(c=>c.type!=="joker").map(c=>c.word))]}
+function selectionAsAttack(cards){
+  if(!cards.length) return null;
+  const words=cardWordSet(cards);
+  if(words.length>1) return null;
+  const word=words[0] || "JOKER";
+  return {word,count:cards.length,armored:cards.some(c=>c.type==="armored"),cards:[...cards]};
+}
+function canRespond(attack, prev){
+  if(!attack) return false;
+  if(!prev) return true;
+  if(attack.count>=prev.count) return true;
+  if(!prev.armored && attack.word===prev.word) return true;
+  return false;
+}
+function canFlingueWith(hand,level){
+  if(hand.length!==level) return false;
+  const words=cardWordSet(hand);
+  return words.length<=1;
+}
+function hasAnyLegal(p,prev){
+  const n=p.hand.length;
+  for(let mask=1;mask<(1<<n);mask++){
+    const cards=[];
+    for(let i=0;i<n;i++) if(mask&(1<<i)) cards.push(p.hand[i]);
+    const a=selectionAsAttack(cards);
+    if(a && canRespond(a,prev)) return true;
+  }
+  return false;
+}
+function distribute(){
+  const deck=buildDeck(), h=player("Toi"), b=player("Bot");
+  let turn=0;
+  while(deck.length){ (turn++%2===0?h:b).reserve.push(deck.pop()) }
+  refill(h); refill(b);
+  G={human:h,bot:b,current:"human",lastAttack:null,lastAttacker:null,selected:new Set(),ended:false};
+  msg("À toi de lancer la première attaque.");
+  render();
+}
+function msg(t){document.getElementById("message").textContent=t;document.getElementById("message").classList.remove("flash");void document.getElementById("message").offsetWidth;document.getElementById("message").classList.add("flash")}
+function removeCards(p,cards){const ids=new Set(cards.map(c=>c.id));p.hand=p.hand.filter(c=>!ids.has(c.id))}
+function playAttack(side,cards){
+  if(G.ended) return;
+  const p=G[side], other=side==="human"?"bot":"human";
+  const a=selectionAsAttack(cards);
+  if(!a || !canRespond(a,G.lastAttack)){if(side==="human") msg("Cette sélection ne peut pas répondre à l’attaque.");return false}
+  removeCards(p,cards); p.zone.push(...cards); refill(p);
+  G.lastAttack={word:a.word,count:a.count,armored:a.armored};
+  G.lastAttacker=side;
+  G.current=other;
+  G.selected.clear();
+  msg(`${p.name} joue ${a.count} × ${a.word}${a.armored?" — BLINDÉE":""}.`);
+  render(); checkEnd();
+  if(!G.ended && other==="bot") setTimeout(botTurn,700);
+  return true;
+}
+function doFlingue(side){
+  if(G.ended) return;
+  const p=G[side], other=side==="human"?"bot":"human";
+  if(!canFlingueWith(p.hand,p.level)){if(side==="human") msg(`Il faut que toute ta main de ${p.level} cartes représente la même onomatopée.`);return}
+  const cards=[...p.hand]; p.hand=[];
+  p.discard.push(...cards,...p.zone.splice(0),...G[other].zone.splice(0));
+  if(p.level<9) p.level++;
+  refill(p);
+  G.lastAttack=null; G.lastAttacker=null; G.current=other; G.selected.clear();
+  msg(`💥 ${p.name.toUpperCase()} : ÇA FLINGUE ! Palier ${p.level}.`);
+  render(); checkEnd();
+  if(!G.ended && other==="bot") setTimeout(botTurn,850);
+}
+function failToRespond(loserSide){
+  if(G.ended || !G.lastAttack || !G.lastAttacker) return;
+  const loser=G[loserSide], winner=G[G.lastAttacker];
+  const n=Math.min(G.lastAttack.count,loser.hand.length);
+  const shuffled=shuffle([...loser.hand]);
+  const taken=shuffled.slice(0,n);
+  const ids=new Set(taken.map(c=>c.id));
+  loser.hand=loser.hand.filter(c=>!ids.has(c.id));
+  winner.discard.push(...taken,...winner.zone.splice(0));
+  refill(loser);
+  G.lastAttack=null; G.lastAttacker=null;
+  G.current=loserSide;
+  G.selected.clear();
+  msg(`${loser.name} ne peut pas répondre. ${winner.name} gagne l’attaque et récupère ${n} carte${n>1?"s":""}. ${loser.name} relance.`);
+  render(); checkEnd();
+  if(!G.ended && loserSide==="bot") setTimeout(botTurn,900);
+}
+function botTurn(){
+  if(G.ended||G.current!=="bot") return;
+  const p=G.bot;
+  if(canFlingueWith(p.hand,p.level) && Math.random()<0.9){doFlingue("bot");return}
+  const legal=[], n=p.hand.length;
+  for(let mask=1;mask<(1<<n);mask++){
+    const cards=[];for(let i=0;i<n;i++)if(mask&(1<<i))cards.push(p.hand[i]);
+    const a=selectionAsAttack(cards);
+    if(a&&canRespond(a,G.lastAttack)){
+      let score=0;
+      score -= a.count*2;
+      if(G.lastAttack && a.word===G.lastAttack.word) score+=3;
+      if(a.armored) score+=1.2;
+      score+=Math.random()*1.5;
+      legal.push({cards,a,score});
+    }
+  }
+  if(!legal.length){failToRespond("bot");return}
+  legal.sort((x,y)=>y.score-x.score);
+  playAttack("bot",legal[0].cards);
+}
+function checkEnd(){
+  for(const side of ["human","bot"]){
+    const p=G[side];
+    if(p.hand.length===0&&p.reserve.length===0&&p.discard.length===0){
+      G.ended=true;
+      const win=side==="human"?"Bot":"Toi";
+      msg(`🏆 ${win} remporte la partie !`);
+      render(); return;
+    }
+  }
+}
+function renderCard(c,clickable=false){
+  const el=document.createElement("div");
+  el.className=`card ${c.type==="armored"?"armored":""} ${c.type==="joker"?"joker":""}`;
+  if(G.selected.has(c.id)) el.classList.add("selected");
+  el.innerHTML=`<div class="word">${c.word}</div><div class="type">${c.type==="armored"?"BLINDÉE":c.type==="joker"?"JOKER":"SIMPLE"}</div>`;
+  if(clickable) el.onclick=()=>{G.selected.has(c.id)?G.selected.delete(c.id):G.selected.add(c.id);render()};
+  return el;
+}
+function renderZone(id,cards){const z=document.getElementById(id);z.innerHTML="";if(!cards.length){z.innerHTML='<span class="tiny">Zone vide</span>';return}cards.forEach(c=>z.appendChild(renderCard(c,false)))}
+function render(){
+  if(!G.human) return;
+  document.getElementById("humanLevel").textContent=G.human.level;
+  document.getElementById("botLevel").textContent=G.bot.level;
+  document.getElementById("humanReserve").textContent=G.human.reserve.length;
+  document.getElementById("botReserve").textContent=G.bot.reserve.length;
+  document.getElementById("humanDiscard").textContent=G.human.discard.length;
+  document.getElementById("botDiscard").textContent=G.bot.discard.length;
+  renderZone("humanZone",G.human.zone);renderZone("botZone",G.bot.zone);
+  const hh=document.getElementById("humanHand");hh.innerHTML="";G.human.hand.forEach(c=>hh.appendChild(renderCard(c,G.current==="human"&&!G.ended)));
+  const backs=document.getElementById("botHandBacks");backs.innerHTML="";for(let i=0;i<G.bot.hand.length;i++){const b=document.createElement("div");b.className="back";backs.appendChild(b)}
+  const av=document.getElementById("attackView");av.innerHTML="";
+  if(G.lastAttack){
+    for(let i=0;i<G.lastAttack.count;i++){const s=document.createElement("span");s.className="token"+(G.lastAttack.armored&&i===0?" arm":"");s.textContent=G.lastAttack.word;av.appendChild(s)}
+    if(G.lastAttack.armored){const s=document.createElement("span");s.className="pill";s.textContent="BLINDÉE";av.appendChild(s)}
+  }else av.innerHTML='<span class="tiny">Aucune attaque en cours : le joueur actif relance librement.</span>';
+
+  const chosen=G.human.hand.filter(c=>G.selected.has(c.id));
+  const a=selectionAsAttack(chosen);
+  document.getElementById("playBtn").disabled=G.current!=="human"||G.ended||!a||!canRespond(a,G.lastAttack);
+  document.getElementById("flingueBtn").disabled=G.current!=="human"||G.ended||!canFlingueWith(G.human.hand,G.human.level);
+  document.getElementById("cantBtn").disabled=G.current!=="human"||G.ended||!G.lastAttack||hasAnyLegal(G.human,G.lastAttack);
+}
+document.getElementById("playBtn").onclick=()=>playAttack("human",G.human.hand.filter(c=>G.selected.has(c.id)));
+document.getElementById("flingueBtn").onclick=()=>doFlingue("human");
+document.getElementById("cantBtn").onclick=()=>failToRespond("human");
+document.getElementById("resetBtn").onclick=()=>{if(confirm("Recommencer une nouvelle partie ?"))distribute()};
+distribute();
+</script>
+</body>
+</html>
